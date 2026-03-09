@@ -476,8 +476,8 @@
                     r: 45, 
                     val: v, 
                     isCorrect: v === ans, 
-                    vx: (Math.random()-0.5)*3, 
-                    vy: (Math.random()-0.5)*3 
+                    vx: (Math.random()-0.5)*9, 
+                    vy: (Math.random()-0.5)*9 
                 });
             });
         }
@@ -550,7 +550,7 @@
                     if(Math.abs(t.vy) < 0.2) t.vy += (Math.random()-0.5)*0.5;
                     t.x+=t.vx; t.y+=t.vy;
                     if(t.x<t.r||t.x>canvas.width-t.r) t.vx*=-1;
-                    if(t.y<t.r+10||t.y>canvas.height-t.r) t.vy*=-1;
+                    if(t.y<t.r+100||t.y>canvas.height-t.r) t.vy*=-1;
                     let d = Math.hypot(p.x - t.x, p.y - t.y);
                     if(d < p.r + t.r) {
                         if(t.isCorrect) {
