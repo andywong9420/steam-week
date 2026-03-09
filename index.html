@@ -2,7 +2,7 @@
 <html lang="zh-HK">
 <head>
     <meta charset="UTF-8">
-    <title>碰碰精伶球</title>
+    <title>碰碰精伶球 - 高中數學篇</title>
     <style>
         body {
             margin: 0;
@@ -69,7 +69,7 @@
         }
         #question-text {
             display: inline-block;
-            font-size: 4vw;
+            font-size: 3.5vw;
             font-weight: bold;
             background: rgba(0,0,0,0.7);
             padding: 15px 60px;
@@ -77,24 +77,11 @@
             border: 2px solid rgba(255,255,255,0.2);
             text-shadow: 0 0 10px rgba(255,255,255,0.5);
         }
-        .bumper-mode-q { top: 20% !important; transform: translate(-50%, 0) !important; }
-
-        #survival-countdown {
-            position: absolute;
-            top: 35%; 
-            left: 50%;
-            transform: translate(-50%, -50%);
-            font-size: 10vw; 
-            font-weight: 900;
-            color: #ffcc00;
-            text-shadow: 0 0 30px #ffcc00;
-            display: none;
-            z-index: 20;
-        }
+        .bumper-mode-q { top: 18% !important; transform: translate(-50%, 0) !important; }
 
         /* --- 遊戲覆蓋層 --- */
         #overlay {
-            position: absolute;
+            position: fixed; 
             top: 0; left: 0; width: 100%; height: 100%;
             background: rgba(5, 5, 16, 0.95);
             display: flex;
@@ -192,30 +179,27 @@
         <div id="question-container" class="bumper-mode-q">
             <div id="question-text">準備開始...</div>
         </div>
-        
-        <div id="survival-countdown">5</div>
     </div>
 
     <div id="gp-status-indicator"></div>
 
     <div id="overlay">
-        <!-- 開始畫面 -->
         <div id="start-screen" class="screen-content">
             <h1 style="font-size:5vw; color:white; text-shadow:0 0 30px #00f3ff; margin-bottom:10px;">
-                碰碰精伶球
+                碰碰精伶球 - 高中數學
             </h1>
             <p style="font-size:1.5vw; color:#aaa; margin-bottom: 40px;">
                 P1: <b>WASD</b> &nbsp;|&nbsp; P2: <b>方向鍵</b>
             </p>
             <p style="color:#ffcc00; font-size: 1.3vw; background: rgba(0,0,0,0.5); display:inline-block; padding:10px 20px; border-radius:20px;">
-                ⭐ 撞球模式：有向數、方程、指數 (撞對得分)<br>
-                ⭐ 生存模式：畢氏定理、不等式、幾何 (搶地盤)
+                ⭐ 題型輪替：兩根、直線、指數、餘式、因式、不等式 [cite: 13, 15, 17, 19, 21, 23]<br>
+                ⭐ 撞擊正確答案得分！
             </p>
             <br>
             <button id="start-btn">開始對戰 (按 Space)</button>
+            <button id="show-lb-btn" style="margin-left: 20px; background: #222; color: #00f3ff; border: 2px solid #00f3ff;">🏆 實時排行榜</button>
         </div>
 
-        <!-- 結束畫面 -->
         <div id="end-screen" class="result-container" style="display:none;">
             <div class="result-col result-p1">
                 <h2>P1 藍隊</h2>
@@ -246,7 +230,15 @@
         </div>
     </div>
 
+    <div id="main-lb-modal" style="display:none; position:absolute; top:50%; left:50%; transform:translate(-50%, -50%); width:60%; max-width:600px; background:rgba(0,0,0,0.95); border:2px solid #00f3ff; border-radius:20px; padding:30px; z-index:200; box-shadow:0 0 40px rgba(0,243,255,0.4); text-align:center;">
+        <h2 style="color:#00f3ff; font-size:2.5vw; margin-bottom:20px;">🏆 TOP 10 實時排行榜</h2>
+        <div id="main-lb-list" class="leaderboard-list" style="margin-bottom:20px; max-height:40vh; overflow-y:auto; font-size: 1.5vw;"></div>
+        <button id="close-lb-btn" style="font-size:1.5vw; padding:10px 30px; background: #333; color: white; border: 1px solid white;">關閉 (按 Esc)</button>
+    </div>
+
     <script>
+        const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbzWZC3tsKiGiXXlvYQkM4aODEqwI_56mSXajbiALlV4pU3klvsZb1c7gk3LUeirOp6u/exec';
+
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
         const gpStatusDiv = document.getElementById('gp-status-indicator');
@@ -257,7 +249,6 @@
             qText: document.getElementById('question-text'),
             p1Score: document.getElementById('p1-score'),
             p2Score: document.getElementById('p2-score'),
-            survivalCnt: document.getElementById('survival-countdown'),
             overlay: document.getElementById('overlay'),
             startScreen: document.getElementById('start-screen'),
             endScreen: document.getElementById('end-screen'),
@@ -268,12 +259,28 @@
             winnerInput: document.getElementById('winner-name'),
             lbList: document.getElementById('lb-list'),
             p1WinMsg: document.getElementById('p1-win-msg'),
-            p2WinMsg: document.getElementById('p2-win-msg')
+            p2WinMsg: document.getElementById('p2-win-msg'),
+            mainLbModal: document.getElementById('main-lb-modal'),
+            mainLbList: document.getElementById('main-lb-list'),
+            showLbBtn: document.getElementById('show-lb-btn'),
+            closeLbBtn: document.getElementById('close-lb-btn')
         };
 
-        document.getElementById('start-btn').onclick = startGame;
-        document.getElementById('submit-score-btn').onclick = submitScore;
-        document.getElementById('replay-btn').onclick = () => location.reload();
+        if (document.getElementById('start-btn')) document.getElementById('start-btn').onclick = startGame;
+        if (document.getElementById('submit-score-btn')) document.getElementById('submit-score-btn').onclick = submitScore;
+        if (document.getElementById('replay-btn')) document.getElementById('replay-btn').onclick = () => location.reload();
+        
+        if (ui.showLbBtn) {
+            ui.showLbBtn.onclick = () => {
+                if(ui.mainLbModal) ui.mainLbModal.style.display = 'block';
+                renderLeaderboard();
+            };
+        }
+        if (ui.closeLbBtn) {
+            ui.closeLbBtn.onclick = () => {
+                if(ui.mainLbModal) ui.mainLbModal.style.display = 'none';
+            };
+        }
 
         function resize() {
             canvas.width = window.innerWidth;
@@ -282,35 +289,110 @@
         window.addEventListener('resize', resize);
         resize();
 
-        // --- 遊戲參數 ---
         let gameState = 'start'; 
         let gameTime = 60; 
         let timerInterval = null;
-        let specialEventTriggered = false; // 已移除特別題邏輯，保留變數防止報錯
-        let continuousScoreTimer = 0;
 
-        let currentMode = 'bumper'; 
-        let survivalTargetTime = 0; 
-        const SURVIVAL_PREP_TIME = 5; 
+        // --- 全新題目資料庫 (對應 Word 文件) ---
+        const allQuestions = [
+            // Type 0: 兩根之和 / 兩根之積 [cite: 14]
+            [
+                { q: "求 x²-5x+6=0 的兩根之和。", opts: ["1", "11", "-6", "-5", "6", "5"], ans: "5" },
+                { q: "求 x²+7x-8=0 的兩根之積。", opts: ["-7", "15", "-8", "7", "8", "-1"], ans: "-8" },
+                { q: "求 2x²-4x+1=0 的兩根之和。", opts: ["2", "4", "1/2", "-4", "-1/2", "-2"], ans: "2" },
+                { q: "求 3x²+9x-12=0 的兩根之積。", opts: ["-3", "3", "4", "-36", "-4", "-12"], ans: "-4" },
+                { q: "求 -x²+3x+10=0 的兩根之和。", opts: ["-10", "1/3", "-3", "0.3", "10", "3"], ans: "3" },
+                { q: "求 x²-10=0 的兩根之和。", opts: ["2", "5", "0", "-2", "-10", "1"], ans: "0" }
+            ],
+            // Type 1: 直線方程 [cite: 16]
+            [
+                { q: "直線 y=3x-5 的斜率是____。", opts: ["5", "-3", "1/3", "3", "0", "-5"], ans: "3" },
+                { q: "直線 2x+4y-8=0 的 y 截距是____。", opts: ["2", "8", "4", "-2", "-1/2", "1"], ans: "2" },
+                { q: "直線 3x-y+6=0 的 x 截距是____。", opts: ["2", "3", "-2", "0", "6", "-6"], ans: "-2" },
+                { q: "直線 5x+2y+10=0 的斜率是____。", opts: ["-5/2", "-10", "5/2", "-2/5", "2", "-5"], ans: "-5/2" },
+                { q: "直線 y=-1/2x+4 的 y 截距是____。", opts: ["0", "-4", "8", "-1/2", "4", "2"], ans: "4" },
+                { q: "直線 x-3y=0 的 x 截距是____。", opts: ["1/3", "1", "0", "3", "-3", "-1/3"], ans: "0" },
+                { q: "直線 4x-6y+12=0 的斜率是____。", opts: ["-3", "-2/3", "4", "2/3", "2", "3/2"], ans: "2/3" },
+                { q: "直線 2x+y=6 的 x 截距是____。", opts: ["3", "1/2", "6", "-3", "-2", "2"], ans: "3" },
+                { q: "直線 y=7 的斜率是____。", opts: ["7", "未定義", "0", "-7", "1", "-1"], ans: "0" },
+                { q: "直線 4x-2y-4=0 的 y 截距是____。", opts: ["1/2", "1", "-1", "2", "-2", "-1/2"], ans: "-2" }
+            ],
+            // Type 2: 指數 [cite: 18]
+            [
+                { q: "化簡 (x²y⁻³)/(2x⁻⁴) 。求 a 的值 (xᵃyᵇ)", opts: ["0", "4", "-8", "16", "8", "2"], ans: "8" },
+                { q: "化簡 (x⁻¹y²)³(x⁵y⁻²) 。求 b 的值 (xᵃyᵇ)", opts: ["2", "-15", "6", "4", "-12", "8"], ans: "4" },
+                { q: "化簡 x³y²(x²y⁻¹) 。求 a 的值 (xᵃyᵇ)", opts: ["4", "3", "-1", "6", "1", "5"], ans: "5" },
+                { q: "化簡 (2x²y⁻¹)³ 。求 k 的值 (kxᵃyᵇ)", opts: ["8", "6", "5", "-3", "2", "-4"], ans: "8" },
+                { q: "化簡 (x⁻²y³)/(x⁴y⁻²)*xy⁻¹ 。求 b 的值 (xᵃyᵇ)", opts: ["-7", "-3", "6", "4", "0", "-1"], ans: "4" },
+                { q: "化簡 x⁻¹y²(x³y⁻⁴) 。求 a+b 的值", opts: ["2", "-2", "0", "-11", "5", "-9"], ans: "0" },
+                { q: "化簡 x⁻³y²/(x⁻¹y³)⁻³ 。求 a 的值 (xᵃyᵇ)", opts: ["6", "-3", "3", "-6", "12", "-12"], ans: "6" },
+                { q: "化簡 x³y²/(2xy⁻²)³ 。求 b 的值 (xᵃyᵇ)", opts: ["2", "10", "-2", "-1", "9", "3"], ans: "10" }
+            ],
+            // Type 3: 餘式定理 [cite: 20]
+            [
+                { q: "求 f(x)=x²+3x+5 除以 x-1 的餘數。", opts: ["5", "9", "0", "7", "1", "-1"], ans: "9" },
+                { q: "求 f(x)=x³-2x+4 除以 x+2 的餘數。", opts: ["4", "0", "-12", "8", "16", "-8"], ans: "0" },
+                { q: "若 f(x)=2x²-x+k 除以 x-2 餘數是 10，求 k。", opts: ["8", "-4", "0", "10", "6", "4"], ans: "4" },
+                { q: "求 f(x)=3x³+1 除以 x+1 的餘數。", opts: ["4", "-2", "2", "0", "1", "-4"], ans: "-2" },
+                { q: "求 f(x)=x¹⁰⁰-1 除以 x+1 的餘數。", opts: ["-2", "1", "100", "-1", "2", "0"], ans: "0" },
+                { q: "求 f(x)=x³+x²-2x+1 除以 x 的餘數。", opts: ["2", "1", "3", "4", "0", "-1"], ans: "1" },
+                { q: "若 f(x)=x²+5x+k 除以 x+2 餘數是 -1，求 k。", opts: ["7", "0", "5", "11", "-5", "-7"], ans: "5" },
+                { q: "求 f(x)=x⁴-x²+x 除以 x-1 的餘數。", opts: ["3", "1", "0", "2", "-3", "-1"], ans: "1" },
+                { q: "已知 f(x)=x³-kx+2。若 f(-1)=5，求 k。", opts: ["6", "4", "2", "8", "-4", "0"], ans: "4" },
+                { q: "已知 f(x)=ax²+bx+c。若 f(0)=3，求 c。", opts: ["3", "0", "6", "-3", "1", "-1"], ans: "3" }
+            ],
+            // Type 4: 因式定理 [cite: 22]
+            [
+                { q: "已知 x-1 是 f(x)=x²+kx-4 的因式，求 k。", opts: ["0", "5", "3", "1", "4", "-3"], ans: "3" },
+                { q: "已知 x+3 是 f(x)=x²+kx+6 的因式，求 k。", opts: ["-5", "3", "5", "15", "0", "2"], ans: "5" },
+                { q: "若 f(x)=kx²+x-2 能被 x-1 整除，求 k。", opts: ["3", "-2", "1", "-1", "2", "0"], ans: "1" },
+                { q: "已知 x-2 是 f(x)=x³-4x+k 的因式，求 k。", opts: ["4", "0", "-8", "16", "8", "-4"], ans: "0" },
+                { q: "已知 x+1 是 f(x)=kx²+3x+1 的因式，求 k。", opts: ["-2", "2", "-4", "3", "1", "4"], ans: "2" },
+                { q: "已知 x-3 是 f(x)=x²-5x+k 的因式，求 k。", opts: ["9", "6", "0", "2", "15", "-6"], ans: "6" },
+                { q: "已知 x+1 是 f(x)=kx³+2x²+5 的因式，求 k。", opts: ["5", "-3", "1", "-7", "7", "3"], ans: "7" },
+                { q: "已知 x+1 是 f(x)=kx⁹⁹-2x+1 的因式，求 k。", opts: ["-3", "3", "1", "-1", "0", "-2"], ans: "-3" },
+                { q: "已知 f(x)=2x³+kx-3。若 f(1)=0，求 k。", opts: ["0", "3", "-1", "5", "-5", "1"], ans: "1" },
+                { q: "已知 f(x)=kx³-2x+6。若 f(-1)=0，求 k。", opts: ["-2", "0", "-8", "8", "-4", "4"], ans: "8" }
+            ],
+            // Type 5: 不等式 [cite: 24]
+            [
+                { q: "若 -x+5>2，求 x 的最大整數解。", opts: ["-3", "1", "3", "7", "-7", "2"], ans: "2" },
+                { q: "若 x-12≤-6，則 x 有多少個正整數解？", opts: ["5", "7", "18", "6", "0", "17"], ans: "6" },
+                { q: "若 -2x+3≤9，求 x 的最小整數解。", opts: ["-2", "-4", "6", "-3", "3", "0"], ans: "-3" },
+                { q: "若 3x<10，則 x 有多少個正整數解？", opts: ["3", "4", "7", "0", "2", "10"], ans: "3" },
+                { q: "若 -x-4≥-1，求 x 的最大整數解。", opts: ["-2", "-4", "5", "3", "-3", "0"], ans: "-3" },
+                { q: "若 2x+7<3，求 x 的最大整數解。", opts: ["-3", "-6", "-2", "2", "-4", "5"], ans: "-3" },
+                { q: "若 -5-x<0，則 x 有多少個負整數解？", opts: ["4", "5", "6", "0", "-4", "-5"], ans: "4" },
+                { q: "若 3x-10>11，則 x 有多少個負整數解？", opts: ["0", "7", "8", "1", "6", "4"], ans: "0" }
+            ]
+        ];
 
-        let questionCounter = 0; 
-        let lastBumperType = ''; 
-        let questionHistory = new Set();
+        let currentTypeIndex = 0;
 
         const players = {
-            p1: { x: 0, y: 0, r: 25, color: '#00f3ff', score: 0, vx: 0, vy: 0, keys: {u:'w', d:'s', l:'a', r:'d'} },
-            p2: { x: 0, y: 0, r: 25, color: '#ff0055', score: 0, vx: 0, vy: 0, keys: {u:'ArrowUp', d:'ArrowDown', l:'ArrowLeft', r:'ArrowRight'} }
+            p1: { x: window.innerWidth * 0.2, y: window.innerHeight * 0.5, r: 25, color: '#00f3ff', score: 0, vx: 0, vy: 0, keys: {u:'w', d:'s', l:'a', r:'d'} },
+            p2: { x: window.innerWidth * 0.8, y: window.innerHeight * 0.5, r: 25, color: '#ff0055', score: 0, vx: 0, vy: 0, keys: {u:'ArrowUp', d:'ArrowDown', l:'ArrowLeft', r:'ArrowRight'} }
         };
         const keysPressed = {};
         
         window.addEventListener('keydown', (e) => {
             keysPressed[e.key] = true;
             if (e.code === 'Space' || e.key === ' ') {
-                if (gameState === 'start') { e.preventDefault(); startGame(); } 
-                else if (gameState === 'end' && ui.replaySec.style.display !== 'none') { e.preventDefault(); location.reload(); }
+                if (gameState === 'start') { 
+                    e.preventDefault(); 
+                    let isModalOpen = ui.mainLbModal && ui.mainLbModal.style.display === 'block';
+                    if (!isModalOpen) startGame(); 
+                } 
+                else if (gameState === 'end' && ui.replaySec && ui.replaySec.style.display !== 'none') { 
+                    e.preventDefault(); 
+                    location.reload(); 
+                }
             }
             if (e.code === 'Enter') {
-                if (gameState === 'end' && ui.inputSec.style.display !== 'none') { submitScore(); }
+                if (gameState === 'end' && ui.inputSec && ui.inputSec.style.display !== 'none') { submitScore(); }
+            }
+            if (e.code === 'Escape') {
+                if (ui.mainLbModal && ui.mainLbModal.style.display === 'block') ui.mainLbModal.style.display = 'none';
             }
         });
         window.addEventListener('keyup', (e) => keysPressed[e.key] = false);
@@ -323,8 +405,8 @@
             let active = 0;
             if(gps[0]) active++;
             if(gps[1]) active++;
-            if(active > 0) gpStatusDiv.innerHTML = `🎮 已連接 ${active} 支控制器`;
-            else gpStatusDiv.innerHTML = "";
+            if(active > 0 && gpStatusDiv) gpStatusDiv.innerHTML = `🎮 已連接 ${active} 支控制器`;
+            else if(gpStatusDiv) gpStatusDiv.innerHTML = "";
         }
 
         let gamepadBtnPressed = { p1: false, p2: false };
@@ -343,15 +425,13 @@
             players.p2.vx = 0; players.p2.vy = 0;
             
             gameTime = 60; 
-            specialEventTriggered = false;
-            questionCounter = 0;
-            lastBumperType = '';
-            questionHistory.clear();
+            currentTypeIndex = 0;
             
-            ui.timer.classList.remove('timer-warning');
-            ui.startScreen.style.display = 'none';
-            ui.endScreen.style.display = 'none';
-            ui.overlay.style.display = 'none';
+            if (ui.timer) ui.timer.classList.remove('timer-warning');
+            if (ui.startScreen) ui.startScreen.style.display = 'none';
+            if (ui.endScreen) ui.endScreen.style.display = 'none';
+            if (ui.overlay) ui.overlay.style.display = 'none';
+            if (ui.qContainer) ui.qContainer.classList.add('bumper-mode-q');
             
             updateScoreUI();
             
@@ -360,201 +440,45 @@
             
             if (timerInterval) clearInterval(timerInterval);
             timerInterval = setInterval(gameTimerLogic, 1000);
-            
-            requestAnimationFrame(gameLoop);
         }
 
         function gameTimerLogic() {
             if (gameState !== 'playing') return;
             gameTime--;
-            ui.timer.innerText = gameTime;
+            if (ui.timer) ui.timer.innerText = gameTime;
             
-            if (gameTime <= 10) ui.timer.classList.add('timer-warning');
+            if (gameTime <= 10 && ui.timer) ui.timer.classList.add('timer-warning');
             if (gameTime <= 0) endGame();
         }
 
         function generateQuestion() {
-            questionCounter++;
-            let isSurvivalTurn = (questionCounter % 3 === 0);
-            if (isSurvivalTurn) {
-                setSurvivalMode(false);
-                generateSurvivalQuestion();
-            } else {
-                setBumperMode();
-                generateBumperQuestion();
-            }
+            let typeArray = allQuestions[currentTypeIndex];
+            let qObj = typeArray[Math.floor(Math.random() * typeArray.length)];
+
+            if (ui.qText) ui.qText.innerText = qObj.q;
+
+            spawnBallsFromOptions(qObj.opts, qObj.ans);
+
+            // 推進到下一個題型，循環
+            currentTypeIndex = (currentTypeIndex + 1) % allQuestions.length;
         }
 
-        function setBumperMode() {
-            currentMode = 'bumper';
-            ui.qContainer.classList.add('bumper-mode-q');
-        }
-
-        function setSurvivalMode(isSpecial) {
-            currentMode = 'survival';
-            ui.qContainer.classList.remove('bumper-mode-q');
-            targets = []; 
-        }
-
-        function generateBumperQuestion() {
-            // 初中基礎運算 (Bumper)
-            let types = ['directed', 'algebra', 'power']; 
-            let type, qStr, ans, qID;
-            let attempts = 0;
-            do {
-                attempts++;
-                do { type = types[Math.floor(Math.random() * types.length)]; } while (type === lastBumperType);
-                
-                if (type === 'directed') {
-                    // 有向數加減 (e.g. -3 + 5)
-                    let a = Math.floor(Math.random()*9) + 1; // 1-9
-                    let b = Math.floor(Math.random()*9) + 1;
-                    if(Math.random() < 0.5) a = -a; // a 可能是負數
-                    let sign = Math.random() < 0.5 ? '+' : '-';
-                    qStr = `${a} ${sign} ${b} = ?`;
-                    ans = (sign==='+') ? a+b : a-b;
-                    qID = `dir_${a}_${sign}_${b}`;
-                } else if (type === 'algebra') {
-                    // 簡易方程 (e.g. 2x = 10, x + 3 = 8)
-                    let sub = Math.random();
-                    if (sub < 0.5) {
-                        // ax = b
-                        let x = Math.floor(Math.random()*9) + 2; // 答案
-                        let coef = Math.floor(Math.random()*4) + 2; // 係數 2-5
-                        let res = x * coef;
-                        qStr = `解方程: ${coef}x = ${res}`;
-                        ans = x;
-                        qID = `alg_mul_${coef}_${res}`;
-                    } else {
-                        // x + a = b
-                        let x = Math.floor(Math.random()*15) - 5; // 答案
-                        let a = Math.floor(Math.random()*10) + 1;
-                        let res = x + a;
-                        let sign = a < 0 ? '-' : '+';
-                        qStr = `解方程: x ${sign} ${Math.abs(a)} = ${res}`;
-                        ans = x;
-                        qID = `alg_add_${a}_${res}`;
-                    }
-                } else if (type === 'power') {
-                    // 指數與平方根
-                    let sub = Math.random();
-                    if (sub < 0.4) {
-                        // 簡單平方/立方: 2^3, 3^2, 5^2
-                        let base = Math.floor(Math.random()*5) + 2; 
-                        let exp = base > 3 ? 2 : Math.floor(Math.random()*2)+2; // 2 or 3
-                        qStr = `${base} 的 ${exp} 次方 = ?`;
-                        ans = Math.pow(base, exp);
-                        qID = `pow_${base}_${exp}`;
-                    } else {
-                        // 平方根: sqrt(16), sqrt(36)
-                        let root = Math.floor(Math.random()*9) + 2; // 2-10
-                        let sq = root * root;
-                        qStr = `√${sq} = ?`;
-                        ans = root;
-                        qID = `sqrt_${sq}`;
-                    }
-                }
-            } while (questionHistory.has(qID) && attempts < 10);
-            questionHistory.add(qID);
-            lastBumperType = type;
-            ui.qText.innerText = qStr;
-            spawnBalls(ans);
-        }
-
-        function generateSurvivalQuestion() {
-            // 初中基礎概念 (Survival)
-            let types = ['pythagoras', 'inequality', 'angle'];
-            let type = types[Math.floor(Math.random()*types.length)];
-            let qStr = "", opts = [], qID;
-            let attempts = 0;
-            do {
-                attempts++;
-                if (type === 'pythagoras') {
-                    // 畢氏定理 (勾股數)
-                    // 3-4-5, 5-12-13, 6-8-10
-                    let triples = [[3,4,5], [5,12,13], [6,8,10], [8,15,17]];
-                    let t = triples[Math.floor(Math.random() * triples.length)];
-                    qStr = `直角三角形邊長: ${t[0]}, ${t[1]}, ?`;
-                    let ans = t[2];
-                    
-                    let w1 = ans + 1;
-                    let w2 = ans - 1;
-                    let w3 = ans + 2;
-                    opts = [{val:ans, isCorrect:true, type:'text'}, {val:w1, isCorrect:false, type:'text'}, {val:w2, isCorrect:false, type:'text'}, {val:w3, isCorrect:false, type:'text'}];
-                    qID = `pyth_${t[0]}`;
-
-                } else if (type === 'inequality') {
-                    // 不等式
-                    let x = Math.floor(Math.random()*10);
-                    let isGreater = Math.random() < 0.5;
-                    qStr = isGreater ? `x > ${x} 的整數` : `x < ${x} 的整數`;
-                    let correct = isGreater ? x + Math.floor(Math.random()*5)+1 : x - Math.floor(Math.random()*5)-1;
-                    
-                    let w1, w2, w3;
-                    if(isGreater) {
-                        w1 = x; w2 = x - 1; w3 = x - 5;
-                    } else {
-                        w1 = x; w2 = x + 1; w3 = x + 5;
-                    }
-                    opts = [{val:correct, isCorrect:true, type:'text'}, {val:w1, isCorrect:false, type:'text'}, {val:w2, isCorrect:false, type:'text'}, {val:w3, isCorrect:false, type:'text'}];
-                    qID = `ineq_${x}_${isGreater}`;
-
-                } else if (type === 'angle') {
-                    // 幾何角度 (保持原有的)
-                    let subType = Math.floor(Math.random()*3); 
-                    qID = `sur_ang_${subType}`;
-                    const acutes = [30, 45, 60, 75, 80];
-                    const obtuses = [100, 120, 135, 150, 160];
-                    const rights = [90];
-                    let correct, w1, w2, w3;
-                    if(subType === 0) { 
-                        qStr = "找出「直角」"; correct = 90;
-                        let pool = [...acutes, ...obtuses]; pool.sort(() => Math.random() - 0.5); 
-                        [w1, w2, w3] = pool.slice(0, 3);
-                    } else if(subType === 1) { 
-                        qStr = "找出「銳角」"; correct = acutes[Math.floor(Math.random() * acutes.length)];
-                        let pool = [...rights, ...obtuses]; pool.sort(() => Math.random() - 0.5); 
-                        [w1, w2, w3] = pool.slice(0, 3);
-                    } else { 
-                        qStr = "找出「鈍角」"; correct = obtuses[Math.floor(Math.random() * obtuses.length)];
-                        let pool = [...rights, ...acutes]; pool.sort(() => Math.random() - 0.5);
-                        [w1, w2, w3] = pool.slice(0, 3);
-                    }
-                    opts = [{val:correct, isCorrect:true, type:'angle'}, {val:w1, isCorrect:false, type:'angle'}, {val:w2, isCorrect:false, type:'angle'}, {val:w3, isCorrect:false, type:'angle'}];
-                }
-            } while (questionHistory.has(qID) && attempts < 5);
-            questionHistory.add(qID);
-            ui.qText.innerText = qStr;
-            spawnZones(opts);
-            startSurvivalCountdown();
-        }
-
-        function startSurvivalCountdown() {
-            // 使用真實時間運算
-            survivalTargetTime = Date.now() + SURVIVAL_PREP_TIME * 1000;
-            ui.survivalCnt.style.display = 'block';
-            ui.survivalCnt.innerText = SURVIVAL_PREP_TIME;
-        }
-
-        function spawnBalls(ans) {
+        function spawnBallsFromOptions(opts, ans) {
             targets = [];
-            let vals = [ans];
-            while(vals.length < 5) {
-                let r = ans + Math.floor(Math.random()*10) - 5;
-                if(r !== ans && !vals.includes(r)) vals.push(r);
-            }
-            vals.sort(()=>Math.random()-0.5);
+            let vals = [...opts];
+            vals.sort(() => Math.random() - 0.5); // 洗牌
+            
             vals.forEach(v => {
-                targets.push({ type: 'ball', x: Math.random()*(canvas.width-100)+50, y: Math.random()*(canvas.height-250)+200, r: 35, val: v, isCorrect: v===ans, vx: (Math.random()-0.5)*3, vy: (Math.random()-0.5)*3 });
-            });
-        }
-
-        function spawnZones(options) {
-            targets = []; options.sort(()=>Math.random()-0.5);
-            const w = canvas.width, h = canvas.height;
-            const pos = [{x: w*0.25, y: h*0.35}, {x: w*0.75, y: h*0.35}, {x: w*0.25, y: h*0.75}, {x: w*0.75, y: h*0.75}];
-            options.forEach((opt, i) => {
-                if(i < 4) targets.push({ type: 'zone', x: pos[i].x, y: pos[i].y, r: 120, maxR: 120, val: opt.val, isCorrect: opt.isCorrect, drawType: opt.type });
+                targets.push({ 
+                    type: 'ball', 
+                    x: Math.random()*(canvas.width-150)+75, 
+                    y: Math.random()*(canvas.height-300)+250, 
+                    r: 45, 
+                    val: v, 
+                    isCorrect: v === ans, 
+                    vx: (Math.random()-0.5)*3, 
+                    vy: (Math.random()-0.5)*3 
+                });
             });
         }
 
@@ -563,7 +487,6 @@
             if(gameState === 'playing' || gameState === 'start') updateGamepadStatus();
 
             const deadzone = 0.2;
-
             let p1ax = 0, p1ay = 0;
             if (keysPressed['a']) p1ax = -1;
             if (keysPressed['d']) p1ax = 1;
@@ -573,7 +496,7 @@
                 if (Math.abs(gamepads[0].axes[0]) > deadzone) p1ax = gamepads[0].axes[0];
                 if (Math.abs(gamepads[0].axes[1]) > deadzone) p1ay = gamepads[0].axes[1];
             }
-            players.p1.vx += p1ax * 0.75; // 速度減慢
+            players.p1.vx += p1ax * 0.75; 
             players.p1.vy += p1ay * 0.75;
 
             let p2ax = 0, p2ay = 0;
@@ -597,8 +520,7 @@
                 if(p.y>canvas.height-p.r) {p.y=canvas.height-p.r; p.vy*=-0.5;}
             });
 
-            let dx = players.p2.x - players.p1.x;
-            let dy = players.p2.y - players.p1.y;
+            let dx = players.p2.x - players.p1.x, dy = players.p2.y - players.p1.y;
             let dist = Math.hypot(dx, dy);
             if(dist < players.p1.r + players.p2.r) {
                 let angle = Math.atan2(dy, dx);
@@ -612,8 +534,7 @@
                 shakeScreen(10); 
             }
 
-            if(currentMode === 'bumper') updateBumperLogic();
-            else updateSurvivalLogic();
+            updateBumperLogic();
         }
 
         function updateBumperLogic() {
@@ -640,54 +561,11 @@
                             spawnFloatText(t.x, t.y, "-1", '#ff0000');
                             shakeScreen(5);
                             updateScoreUI();
-                            // 錯球反彈力度 0.1
                             t.vx = (t.x-p.x)*0.1; t.vy = (t.y-p.y)*0.1; 
                         }
                     }
                 }
             });
-        }
-
-        function updateSurvivalLogic() {
-            let now = Date.now();
-            let remaining = Math.ceil((survivalTargetTime - now) / 1000);
-
-            if (remaining > 0) {
-                ui.survivalCnt.innerText = remaining;
-            } else {
-                ui.survivalCnt.style.display = 'none';
-                checkSurvivalResult(); 
-                generateQuestion(); 
-            }
-            
-            targets.forEach(t => {
-                if (t.type === 'zone') {
-                    if (remaining > 0) t.r = t.maxR * (0.95 + Math.sin(now/200)*0.05);
-                }
-            });
-        }
-
-        function checkSurvivalResult() {
-            let anyCorrect = false;
-            [players.p1, players.p2].forEach(p => {
-                let safe = false;
-                targets.forEach(t => {
-                    if (t.isCorrect && Math.hypot(p.x-t.x, p.y-t.y) < t.r) safe = true;
-                });
-                if (safe) {
-                    p.score += 10;
-                    spawnFloatText(p.x, p.y, "+10", p.color);
-                    spawnParticles(p.x, p.y, '#ffff00', 30);
-                    anyCorrect = true;
-                } else {
-                    p.score = Math.max(0, p.score - 1); 
-                    spawnFloatText(p.x, p.y, "Miss", "#aaa");
-                    // 生存模式錯位彈飛力度 15
-                    p.vx = (Math.random()-0.5)*15; p.vy = (Math.random()-0.5)*15; 
-                }
-            });
-            updateScoreUI();
-            if (anyCorrect) shakeScreen(10);
         }
 
         function draw() {
@@ -704,14 +582,12 @@
                 if(t.type === 'ball') {
                     ctx.beginPath(); ctx.arc(t.x, t.y, t.r, 0, Math.PI*2);
                     ctx.fillStyle = '#222'; ctx.fill(); ctx.strokeStyle = '#fff'; ctx.lineWidth=2; ctx.stroke();
-                    ctx.fillStyle='#fff'; ctx.font='bold 24px Arial'; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText(t.val, t.x, t.y);
-                } else if (t.type === 'zone') {
-                    if (t.r <= 0) return;
-                    ctx.beginPath(); ctx.arc(t.x, t.y, t.r, 0, Math.PI*2);
-                    ctx.fillStyle = 'rgba(0,243,255,0.15)';
-                    ctx.fill(); ctx.strokeStyle = '#00f3ff'; ctx.lineWidth = 4; ctx.stroke();
-                    drawZoneContent(t);
-                }
+                    ctx.fillStyle='#fff'; 
+                    let fontSize = t.val.length > 2 ? 18 : 24;
+                    ctx.font=`bold ${fontSize}px Arial`; 
+                    ctx.textAlign='center'; ctx.textBaseline='middle'; 
+                    ctx.fillText(t.val, t.x, t.y);
+                } 
             });
 
             [players.p1, players.p2].forEach(p => {
@@ -747,8 +623,8 @@
                     if (btnPressed && !gamepadBtnPressed[playerId]) {
                         if (gameState === 'start') startGame();
                         else if (gameState === 'end') {
-                            if (ui.inputSec.style.display === 'block') submitScore();
-                            else if (ui.replaySec.style.display === 'block') location.reload();
+                            if (ui.inputSec && ui.inputSec.style.display === 'block') submitScore();
+                            else if (ui.replaySec && ui.replaySec.style.display === 'block') location.reload();
                         }
                         gamepadBtnPressed[playerId] = true;
                     } else if (!btnPressed) gamepadBtnPressed[playerId] = false;
@@ -756,114 +632,104 @@
             });
         }
 
-        function drawZoneContent(t) {
-            ctx.fillStyle = '#fff'; ctx.strokeStyle = '#fff'; ctx.lineWidth = 3;
-            let scale = Math.min(1, t.r / 60); 
-            if (t.drawType === 'text') {
-                ctx.font = `bold ${40 * scale}px Arial`; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText(t.val, t.x, t.y);
-            } else if (t.drawType === 'angle') {
-                let s = scale; 
-                let len = 40 * s;
-                let cx = t.x, cy = t.y + 15 * s;
-                ctx.beginPath(); ctx.moveTo(cx + len, cy); ctx.lineTo(cx, cy);       
-                let rad = -t.val * Math.PI / 180;
-                ctx.lineTo(cx + len * Math.cos(rad), cy + len * Math.sin(rad));
-                ctx.stroke();
-                ctx.beginPath();
-                ctx.lineWidth = 2;
-                ctx.strokeStyle = '#ff3333'; 
-                if(t.val === 90) {
-                    let size = 15 * s;
-                    ctx.moveTo(cx + size, cy); ctx.lineTo(cx + size, cy - size); ctx.lineTo(cx, cy - size);
-                } else {
-                    ctx.arc(cx, cy, 20 * s, 0, rad, true);
-                }
-                ctx.stroke();
-                ctx.strokeStyle = '#fff'; ctx.lineWidth = 3;
-            }
-        }
-
         function endGame() {
             gameState = 'end';
             clearInterval(timerInterval);
-            ui.overlay.style.display = 'flex'; ui.startScreen.style.display = 'none'; ui.endScreen.style.display = 'flex'; ui.survivalCnt.style.display = 'none';
-            ui.endP1.innerText = players.p1.score.toFixed(1); ui.endP2.innerText = players.p2.score.toFixed(1);
-            ui.p1WinMsg.style.display = 'none'; ui.p2WinMsg.style.display = 'none';
+            
+            if (ui.overlay) ui.overlay.style.display = 'flex'; 
+            if (ui.startScreen) ui.startScreen.style.display = 'none'; 
+            if (ui.endScreen) ui.endScreen.style.display = 'flex'; 
+            
+            if (ui.endP1) ui.endP1.innerText = players.p1.score.toFixed(1); 
+            if (ui.endP2) ui.endP2.innerText = players.p2.score.toFixed(1);
+            if (ui.p1WinMsg) ui.p1WinMsg.style.display = 'none'; 
+            if (ui.p2WinMsg) ui.p2WinMsg.style.display = 'none';
+            
             let p1s = players.p1.score, p2s = players.p2.score;
-            if (p1s > p2s) { ui.p1WinMsg.style.display = 'block'; showWinnerInput(p1s); }
-            else if (p2s > p1s) { ui.p2WinMsg.style.display = 'block'; showWinnerInput(p2s); }
-            else { ui.inputSec.style.display = 'none'; ui.replaySec.style.display = 'block'; }
+            if (p1s > p2s) { 
+                if (ui.p1WinMsg) ui.p1WinMsg.style.display = 'block'; 
+                showWinnerInput(p1s); 
+            }
+            else if (p2s > p1s) { 
+                if (ui.p2WinMsg) ui.p2WinMsg.style.display = 'block'; 
+                showWinnerInput(p2s); 
+            }
+            else { 
+                if (ui.inputSec) ui.inputSec.style.display = 'none'; 
+                if (ui.replaySec) ui.replaySec.style.display = 'block'; 
+            }
+            
             renderLeaderboard();
         }
 
         function showWinnerInput(score) {
-            window.winningScore = score; ui.inputSec.style.display = 'block'; ui.replaySec.style.display = 'none';
-            setTimeout(() => document.getElementById('winner-name').focus(), 100);
+            window.winningScore = score; 
+            if (ui.inputSec) ui.inputSec.style.display = 'block'; 
+            if (ui.replaySec) ui.replaySec.style.display = 'none';
         }
 
-// --- 雲端排行榜 API 設置 ---
-        // 請將下方引號內的網址，替換成你剛剛在 Apps Script 獲得的 Web App URL
-        const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbzWZC3tsKiGiXXlvYQkM4aODEqwI_56mSXajbiALlV4pU3klvsZb1c7gk3LUeirOp6u/exec'; 
-
         async function submitScore() {
-            let name = ui.winnerInput.value.toUpperCase() || "AAA"; // [cite: 448, 449]
-            
-            // 隱藏輸入框，顯示載入中提示
-            ui.inputSec.style.display = 'none'; // 
-            ui.lbList.innerHTML = '<div style="text-align:center; padding:20px;">📡 正在將分數傳送至雲端...</div>';
+            let name = (ui.winnerInput && ui.winnerInput.value.toUpperCase()) || "AAA";
+            if (ui.inputSec) ui.inputSec.style.display = 'none'; 
+            if (ui.lbList) ui.lbList.innerHTML = '<div style="text-align:center; padding:20px;">📡 正在將分數傳送至雲端...</div>';
 
             try {
-                // 使用 POST 方法將數據送到 Google Sheets
                 await fetch(WEB_APP_URL, {
                     method: 'POST',
-                    body: JSON.stringify({ name: name, score: window.winningScore }), // [cite: 449]
-                    headers: {
-                        'Content-Type': 'text/plain;charset=utf-8', // 使用 text/plain 避免 CORS 預檢請求錯誤
-                    }
+                    body: JSON.stringify({ name: name, score: window.winningScore }), 
+                    headers: { 'Content-Type': 'text/plain;charset=utf-8' }
                 });
             } catch (error) {
                 console.error('上傳分數失敗:', error);
             }
 
-            // 上傳完成後，顯示重玩按鈕並刷新排行榜
-            ui.replaySec.style.display = 'block'; // 
+            if (ui.replaySec) ui.replaySec.style.display = 'block'; 
             await renderLeaderboard();
         }
 
         async function renderLeaderboard() {
-            ui.lbList.innerHTML = '<div style="text-align:center; padding:20px;">⏳ 正在載入實時排行榜...</div>';
+            let loadingMsg = '<div style="text-align:center; padding:20px;">⏳ 正在載入實時排行榜...</div>';
+            if(ui.lbList) ui.lbList.innerHTML = loadingMsg;
+            if(ui.mainLbList) ui.mainLbList.innerHTML = loadingMsg;
             
             try {
-                // 從 Google Sheets 獲取 Top 10 數據
                 let response = await fetch(WEB_APP_URL);
                 let lb = await response.json();
                 
-                let html = ''; // [cite: 451]
-                for(let i=0; i<10; i++) { // [cite: 451]
-                    let item = lb[i] || {name:'-', score:'-'}; // [cite: 451, 452]
+                let html = ''; 
+                for(let i=0; i<10; i++) { 
+                    let item = lb[i] || {name:'-', score:'-'}; 
                     let scoreDisplay = item.score !== '-' ? Number(item.score).toFixed(1) : '-';
-                    html += `<div class="lb-item"><span class="lb-rank">${i+1}.</span><span class="lb-name">${item.name}</span><span class="lb-score">${scoreDisplay}</span></div>`; // [cite: 452]
+                    html += `<div class="lb-item"><span class="lb-rank">${i+1}.</span><span class="lb-name">${item.name}</span><span class="lb-score">${scoreDisplay}</span></div>`; 
                 }
-                ui.lbList.innerHTML = html; // [cite: 452]
+                
+                if(ui.lbList) ui.lbList.innerHTML = html; 
+                if(ui.mainLbList) ui.mainLbList.innerHTML = html;
+                
             } catch (error) {
                 console.error('獲取排行榜失敗:', error);
-                ui.lbList.innerHTML = '<div style="text-align:center; padding:20px; color:#ff3333;">❌ 無法連接雲端伺服器</div>';
+                let errMsg = '<div style="text-align:center; padding:20px; color:#ff3333;">❌ 無法連接雲端伺服器</div>';
+                if(ui.lbList) ui.lbList.innerHTML = errMsg;
+                if(ui.mainLbList) ui.mainLbList.innerHTML = errMsg;
             }
         }
 
-        // 遊戲一開始載入時，先抓取一次最新的排行榜資料
-        renderLeaderboard();
-        
         function spawnParticles(x, y, color, count) { for(let i=0; i<count; i++) particles.push({x, y, vx:(Math.random()-0.5)*10, vy:(Math.random()-0.5)*10, life:1.0, color}); }
         function spawnFloatText(x, y, text, color) { floatingTexts.push({x, y, text, color, life:1.0}); }
         function shakeScreen(n) { shakeFrames = n; }
-        function updateScoreUI() { ui.p1Score.innerText = players.p1.score.toFixed(1); ui.p2Score.innerText = players.p2.score.toFixed(1); }
+        function updateScoreUI() { 
+            if (ui.p1Score) ui.p1Score.innerText = players.p1.score.toFixed(1); 
+            if (ui.p2Score) ui.p2Score.innerText = players.p2.score.toFixed(1); 
+        }
 
         function gameLoop() {
             if (gameState === 'playing') updatePhysics();
             draw();
             requestAnimationFrame(gameLoop);
         }
+
+        renderLeaderboard();
+        requestAnimationFrame(gameLoop);
     </script>
 </body>
 </html>
