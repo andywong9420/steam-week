@@ -542,6 +542,12 @@
                 for(let i=targets.length-1; i>=0; i--) {
                     let t = targets[i];
                     if(t.type !== 'ball') continue;
+                    // 加入摩擦力，數值 0.98 代表每幀速度剩下 98%，可以避免它無限期高速亂飛
+                    t.vx *= 0.98; 
+                    t.vy *= 0.98; 
+                    // 如果速度太慢，就給它一點點隨機動力，保持畫面的動態感
+                    if(Math.abs(t.vx) < 0.2) t.vx += (Math.random()-0.5)*0.5;
+                    if(Math.abs(t.vy) < 0.2) t.vy += (Math.random()-0.5)*0.5;
                     t.x+=t.vx; t.y+=t.vy;
                     if(t.x<t.r||t.x>canvas.width-t.r) t.vx*=-1;
                     if(t.y<t.r+10||t.y>canvas.height-t.r) t.vy*=-1;
@@ -561,7 +567,9 @@
                             spawnFloatText(t.x, t.y, "-1", '#ff0000');
                             shakeScreen(5);
                             updateScoreUI();
-                            t.vx = (t.x-p.x)*0.1; t.vy = (t.y-p.y)*0.1; 
+                            // 將反彈力度從 0.1 降低到 0.04 或 0.03（數字越小，撞擊後飛得越慢）
+                            t.vx = (t.x-p.x)*0.04; 
+                            t.vy = (t.y-p.y)*0.04; 
                         }
                     }
                 }
