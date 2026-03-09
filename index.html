@@ -424,7 +424,7 @@
             players.p1.vx = 0; players.p1.vy = 0;
             players.p2.vx = 0; players.p2.vy = 0;
             
-            gameTime = 60; 
+            gameTime = 90; 
             currentTypeIndex = 0;
             
             if (ui.timer) ui.timer.classList.remove('timer-warning');
@@ -544,7 +544,7 @@
                     if(t.type !== 'ball') continue;
                     t.x+=t.vx; t.y+=t.vy;
                     if(t.x<t.r||t.x>canvas.width-t.r) t.vx*=-1;
-                    if(t.y<t.r+100||t.y>canvas.height-t.r) t.vy*=-1;
+                    if(t.y<t.r+10||t.y>canvas.height-t.r) t.vy*=-1;
                     let d = Math.hypot(p.x - t.x, p.y - t.y);
                     if(d < p.r + t.r) {
                         if(t.isCorrect) {
